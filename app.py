@@ -16,7 +16,7 @@ tekstura = st.sidebar.radio("Tekstura", ["Gładka", "Szorstka"])
 kolor_nazwa = st.sidebar.selectbox("Kolor", ["Zielony", "Czerwony", "Pomarańczowy", "Żółty", "Ciemny"])
 ksztalt_nazwa = st.sidebar.selectbox("Kształt", ["Okrągły", "Podłużny"])
 
-# Mapowanie na liczby (musi być identyczne jak w train.py!)
+# Mapowanie na liczby
 mapa_tekstury = {"Gładka": 0, "Szorstka": 1}
 mapa_kolorow = {"Zielony": 0, "Czerwony": 1, "Pomarańczowy": 2, "Żółty": 3, "Ciemny": 4}
 mapa_ksztaltow = {"Okrągły": 0, "Podłużny": 1}
@@ -28,57 +28,51 @@ with col1:
     st.subheader("🔍 Dane wejściowe")
     st.info(f"⚖️ Waga: {waga}g | 🎨 Kolor: {kolor_nazwa} | 📐 Kształt: {ksztalt_nazwa}")
 
-    if st.button("ANALIZUJ OWOC", use_container_width=True):
-        try:
-            # Ładowanie modelu
-            model = joblib.load('model_owocow.pkl')
+    # Przycisk analizy
+    analizuj = st.button("ANALIZUJ OWOC", use_container_width=True)
 
-            # Przygotowanie danych do predykcji
-            dane = np.array([[waga, mapa_tekstury[tekstura], mapa_kolorow[kolor_nazwa], mapa_ksztaltow[ksztalt_nazwa]]])
+if analizuj:
+    try:
+        # Ładowanie modelu
+        model = joblib.load('model_owocow.pkl')
 
-            # Predykcja
-            wynik = model.predict(dane)[0]
-            proby = model.predict_proba(dane)[0]
-            klasy = model.classes_
-            pewnosc_max = max(proby) * 100
+        # Przygotowanie danych
+        dane = np.array([[waga, mapa_tekstury[tekstura], mapa_kolorow[kolor_nazwa], mapa_ksztaltow[ksztalt_nazwa]]])
 
-            with col2:
-                st.subheader("🤖 Wynik Analizy AI")
+        # Predykcja
+        wynik = model.predict(dane)[0]
+        proby = model.predict_proba(dane)[0]
+        klasy = model.classes_
+        pewnosc_max = max(proby) * 100
 
-                # Główny werdykt
-                st.success(f"Werdykt: **{wynik.upper()}**")
-                st.metric("Pewność najwyższa", f"{pewnosc_max:.1f}%")
+        with col2:
+            st.subheader("🤖 Wynik Analizy AI")
+            st.success(f"Werdykt: **{wynik.upper()}**")
+            st.metric("Pewność najwyższa", f"{pewnosc_max:.1f}%")
 
-                # Sekcja Prawdopodobieństwa (Paski postępu)
-                st.markdown("---")
-                st.write("📊 **Szczegółowy rozkład prawdopodobieństwa:**")
+            st.markdown("---")
+            st.write("📊 **Rozkład prawdopodobieństwa:**")
 
-                for i in range(len(klasy)):
-                    procent = proby[i] * 100
-                    nazwa_owocu = klasy[i].capitalize()
+            for i in range(len(klasy)):
+                procent = proby[i] * 100
+                if procent > 1:
+                    st.write(f"{klasy[i].capitalize()}: {procent:.1f}%")
+                    st.progress(proby[i])
 
-                    # Wyświetlamy tylko te owoce, które mają chociaż 1% szans
-                    if procent > 1:
-                        st.write(f"{nazwa_owocu}: {procent:.1f}%")
-                        st.progress(proby[i])
+            st.markdown("---")
+            sciezka_foto = f"{wynik}.jpg"
+            if os.path.exists(sciezka_foto):
+                st.image(sciezka_foto, width=350)
+            else:
+                st.warning(f"Brak pliku: {sciezka_foto}")
 
-                # Wyświetlanie zdjęcia
-                st.markdown("---")
-                sciezka_foto = f"{wynik}.jpg"
-                if os.path.exists(sciezka_foto):
-                    st.image(sciezka_foto, width=350, caption=f"To jest {wynik}")
-                else:
-                    st.warning(f"Brak pliku: {sciezka_foto}")
+            if pewnosc_max > 80:
+                st.balloons()
+            elif pewnosc_max < 50:
+                st.warning("⚠️ Model ma wątpliwości!")
 
-                if pewnosc_max > 80:
-                    st.balloons()
-                elif pewnosc_max < 50:
-                    st.warning("⚠️ Model ma wątpliwości. Spróbuj zmienić parametry!")
-
-        except Exception as e:
-            st.error(f"Wystąpił błąd: {e}")
-            st.info("Upewnij się, że plik 'model_owocow.pkl' istnieje i został poprawnie wytrenowany.")
-
+    except Exception as e:
+        st.error(f"Błąd: {e}")
 else:
-with col2:
-    st.write("👈 Skonfiguruj owoc w panelu bocznym i kliknij przycisk, aby zobaczyć magię AI!")
+    with col2:
+        st.info("👈 Skonfiguruj owoc i kliknij ANALIZUJ, aby zobaczyć wynik.")
